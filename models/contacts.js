@@ -1,5 +1,7 @@
+const Joi = require("joi");
 const fs = require("fs/promises");
 const path = require("path");
+const contactSchema = require("./validateContacts");
 
 // Ścieżka do pliku z kontaktami
 const contactsPath = path.join(__dirname, "contacts.json");
@@ -42,12 +44,20 @@ async function removeContact(contactId) {
 async function addContact(name, email, phone) {
   const { nanoid } = await import("nanoid");
   const contacts = await readContacts();
+
+  const { error } = contactSchema.validate({ name, email, phone });
+  if (error) {
+    throw new Error(error.details[0].message);
+  }
+
+  // Tworzenie nowego kontaktu
   const newContact = {
     id: nanoid(),
     name,
     email,
     phone,
   };
+
   contacts.push(newContact);
   await writeContacts(contacts);
   return newContact;
@@ -60,6 +70,13 @@ async function updateContact(contactId, body) {
   if (index === -1) {
     return null;
   }
+
+  const { error } = contactSchema.validate(body);
+  if (error) {
+    throw new Error(error.details[0].message);
+  }
+
+  // Aktualizowanie kontaktu na podstawie przekazanego body
   contacts[index] = { ...contacts[index], ...body };
   await writeContacts(contacts);
   return contacts[index];
