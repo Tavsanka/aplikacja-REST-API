@@ -1,7 +1,6 @@
-const Joi = require("joi");
 const fs = require("fs/promises");
 const path = require("path");
-const contactSchema = require("./validateContacts");
+const { contactSchema } = require("../middlewares/validateContact");
 
 // Ścieżka do pliku z kontaktami
 const contactsPath = path.join(__dirname, "contacts.json");

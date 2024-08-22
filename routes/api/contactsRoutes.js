@@ -1,6 +1,6 @@
 const express = require("express");
 const contacts = require("../../models/contacts");
-const validateContact = require("../../middlewares/validateContact");
+const { validateContact } = require("../../middlewares/validateContact");
 const router = express.Router();
 
 router.get("/", async (req, res, next) => {

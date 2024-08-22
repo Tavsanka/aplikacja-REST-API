@@ -7,6 +7,8 @@ const contactSchema = Joi.object({
 });
 
 const validateContact = (req, res, next) => {
+  console.log("Dane do walidacji:", req.body);
+  console.log("name:", req.body.name);
   const { error } = contactSchema.validate(req.body);
   if (error) {
     return res.status(400).json({ message: error.details[0].message });
@@ -14,4 +16,7 @@ const validateContact = (req, res, next) => {
   next();
 };
 
-module.exports = validateContact;
+module.exports = {
+  validateContact,
+  contactSchema,
+};
