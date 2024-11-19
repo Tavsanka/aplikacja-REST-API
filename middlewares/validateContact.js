@@ -6,6 +6,10 @@ const contactSchema = Joi.object({
   phone: Joi.string().min(10).max(15).required(),
 });
 
+const favoriteSchema = Joi.object({
+  favorite: Joi.boolean().required(), // Tylko pole favorite jest wymagane
+});
+
 const validateContact = (req, res, next) => {
   const { error } = contactSchema.validate(req.body);
   if (error) {
@@ -14,4 +18,17 @@ const validateContact = (req, res, next) => {
   next();
 };
 
-module.exports = validateContact;
+const validateFavorite = (req, res, next) => {
+  const { error } = favoriteSchema.validate(req.body);
+  if (error) {
+    return res.status(400).json({ message: error.details[0].message });
+  }
+  next();
+};
+
+module.exports = {
+  contactSchema,
+  favoriteSchema,
+  validateContact,
+  validateFavorite,
+};

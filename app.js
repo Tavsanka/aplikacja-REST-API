@@ -1,3 +1,6 @@
+require("dotenv").config();
+const connectDB = require("./config/database");
+
 const express = require("express");
 const logger = require("morgan");
 const cors = require("cors");
@@ -5,6 +8,8 @@ const errorMiddleware = require("./middlewares/errorMiddleware");
 const contactsRouter = require("./routes/api/contactsRoutes");
 
 const app = express();
+
+connectDB();
 
 const formatsLogger = app.get("env") === "development" ? "dev" : "short";
 
