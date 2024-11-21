@@ -11,7 +11,7 @@ const {
   updateContact,
   removeContact,
   updateStatusContact,
-} = require("./contactsController");
+} = require("../../controllers/contactsController");
 
 router.get("/", listContacts);
 router.get("/:contactId", getContactById);
