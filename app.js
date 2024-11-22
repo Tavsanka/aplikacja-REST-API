@@ -18,10 +18,20 @@ app.use(logger(formatsLogger));
 app.use(cors());
 app.use(express.json());
 
+// Dodanie logów do middleware'ów i tras
+app.use((req, res, next) => {
+  console.log(`Incoming request: ${req.method} ${req.url}`);
+  console.log("Headers:", req.headers);
+  console.log("Body:", req.body);
+  next();
+});
+
 app.use("/api/users", userRouter);
 app.use("/api/contacts", contactsRouter);
 
 app.use((req, res) => {
+  console.log(`404 Not Found: ${req.method} ${req.url}`);
+
   res.status(404).json({ message: "Not found" });
 });
 

@@ -1,17 +1,13 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const User = require("../../models/user");
-
-// Logi debugujące dla JWT_SECRET
-console.log("JWT_SECRET:", process.env.JWT_SECRET);
+const User = require("../models/user");
 
 // Rejestracja użytkownika
 const registerUser = async (req, res, next) => {
   try {
     const { email, password } = req.body;
-
-    // Sprawdzenie, czy użytkownik już istnieje
     const existingUser = await User.findOne({ email });
+
     if (existingUser) {
       return res.status(409).json({ message: "Email in use" });
     }
@@ -20,9 +16,9 @@ const registerUser = async (req, res, next) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const newUser = await User.create({ email, password: hashedPassword });
 
-    res
-      .status(201)
-      .json({ email: newUser.email, subscription: newUser.subscription });
+    res.status(201).json({
+      user: { email: newUser.email, subscription: newUser.subscription },
+    });
   } catch (error) {
     next(error);
   }
@@ -46,9 +42,10 @@ const loginUser = async (req, res, next) => {
     user.token = token;
     await user.save();
 
-    res
-      .status(200)
-      .json({ token, email: user.email, subscription: user.subscription });
+    res.status(200).json({
+      token,
+      user: { email: user.email, subscription: user.subscription },
+    });
   } catch (error) {
     next(error);
   }
@@ -67,8 +64,18 @@ const logoutUser = async (req, res, next) => {
   }
 };
 
+const getCurrentUser = async (req, res, next) => {
+  try {
+    const { email, subscription } = req.user;
+    res.status(200).json({ email, subscription });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
   logoutUser,
+  getCurrentUser,
 };
