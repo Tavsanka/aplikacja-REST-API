@@ -3,7 +3,19 @@ const Contact = require("../models/contact");
 const listContacts = async (req, res, next) => {
   try {
     const userId = req.user._id;
-    const allContacts = await Contact.find({ owner: userId });
+
+    const { page = 1, limit = 20, favorite } = req.query; // dodaj "favorite"
+    const skip = (page - 1) * limit;
+
+    const filter = { owner: userId };
+    if (favorite !== undefined) {
+      filter.favorite = favorite === "true"; // Konwersja string na boolean
+    }
+
+    const allContacts = await Contact.find(filter)
+      .skip(skip)
+      .limit(Number(limit));
+
     res.status(200).json(allContacts);
   } catch (error) {
     next(error);
