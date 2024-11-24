@@ -14,14 +14,14 @@ const authMiddleware = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findById(decoded.id);
 
-    if (!user) {
+    if (!user || user.token !== token) {
       return res.status(401).json({ message: "Not authorized" });
     }
 
-    req.user = user; // Dodaj użytkownika do requesta
+    req.user = user;
     next();
   } catch (error) {
-    res.status(401).json({ message: "Not authorized" });
+    return res.status(401).json({ message: "Not authorized" });
   }
 };
 
