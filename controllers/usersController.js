@@ -1,6 +1,15 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const gravatar = require("gravatar");
+const path = require("path");
+const fs = require("fs/promises");
+const Jimp = require("jimp");
+console.log("Jimp module loaded:", Jimp);
+
 const User = require("../models/user");
+
+// Definiowanie ścieżki do folderu avatars
+const avatarsDir = path.join(__dirname, "../public/avatars");
 
 // Rejestracja użytkownika
 const registerUser = async (req, res, next) => {
@@ -14,10 +23,22 @@ const registerUser = async (req, res, next) => {
 
     // Hashowanie hasła i tworzenie użytkownika
     const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = await User.create({ email, password: hashedPassword });
+
+    // Generowanie URL awatara
+    const avatarURL = gravatar.url(email, { s: "250", d: "retro" }, true);
+
+    const newUser = await User.create({
+      email,
+      password: hashedPassword,
+      avatarURL,
+    });
 
     res.status(201).json({
-      user: { email: newUser.email, subscription: newUser.subscription },
+      user: {
+        email: newUser.email,
+        subscription: newUser.subscription,
+        avatarURL: newUser.avatarURL,
+      },
     });
   } catch (error) {
     next(error);
@@ -101,10 +122,120 @@ const updateSubscription = async (req, res, next) => {
   }
 };
 
+const updateAvatar = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "File is required" });
+    }
+
+    // Pobierz aktualnego użytkownika
+    const currentUser = await User.findById(req.user._id);
+    if (!currentUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Usunięcie starego pliku, jeśli istnieje
+    if (currentUser.avatarURL) {
+      const oldAvatarPath = path.join(
+        __dirname,
+        "../public",
+        currentUser.avatarURL
+      );
+      try {
+        await fs.access(oldAvatarPath);
+        console.log("Plik istnieje:", oldAvatarPath);
+        await fs.unlink(oldAvatarPath);
+        console.log("Stare zdjęcie usunięte:", oldAvatarPath);
+      } catch (unlinkError) {
+        console.error(
+          "Błąd podczas usuwania starego zdjęcia lub plik nie istnieje:",
+          unlinkError.message
+        );
+      }
+    }
+
+    // Pobranie ścieżki tymczasowej i nazwy pliku
+    const { path: tempPath, filename } = req.file;
+
+    // **Dodanie logów do sprawdzenia ścieżki tymczasowej**
+    console.log("Temp file path:", tempPath);
+
+    const avatarPath = path.join(avatarsDir, `${Date.now()}-${filename}`);
+
+    // **Dodanie logów do sprawdzenia ścieżki docelowej**
+    console.log("Final avatar path:", avatarPath);
+
+    // Przetwarzanie obrazu za pomocą Jimp
+    try {
+      const image = await Jimp.read(tempPath);
+      console.log("Image loaded successfully");
+
+      const maxSize = 500; // Maksymalny rozmiar dłuższego boku
+      const width = image.getWidth();
+      const height = image.getHeight();
+
+      if (width > maxSize || height > maxSize) {
+        const scalingFactor = maxSize / Math.max(width, height);
+        const newWidth = Math.round(width * scalingFactor);
+        const newHeight = Math.round(height * scalingFactor);
+        await image.resize(newWidth, newHeight); // Zmniejszenie proporcjonalne
+        console.log(
+          `Image resized to ${newWidth}x${newHeight} before cropping`
+        );
+      }
+
+      // **Krok 2: Kadrowanie do kwadratu**
+      const croppedSize = Math.min(image.getWidth(), image.getHeight());
+      const x = (image.getWidth() - croppedSize) / 2;
+      const y = (image.getHeight() - croppedSize) / 2;
+
+      image.crop(x, y, croppedSize, croppedSize);
+      console.log(`Image cropped to ${croppedSize}x${croppedSize}`);
+
+      // **Krok 3: Zmiana rozmiaru na 250x250**
+      await image.resize(250, 250).writeAsync(tempPath);
+      console.log("Image resized to 250x250 successfully");
+    } catch (jimpError) {
+      console.error("Error processing image with Jimp:", jimpError.message);
+      return res
+        .status(500)
+        .json({ message: "Failed to process image with Jimp." });
+    }
+
+    // Przenieś plik do public/avatars
+    try {
+      await fs.rename(tempPath, avatarPath);
+      console.log("File moved successfully");
+    } catch (renameError) {
+      console.error("Error moving file:", renameError.message);
+      return res.status(500).json({ message: "Failed to move file." });
+    }
+
+    // Aktualizacja pola avatarURL w użytkowniku
+    const avatarURL = `/avatars/${path.basename(avatarPath)}`;
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user._id,
+      { avatarURL },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    console.log("Avatar URL updated successfully");
+    res.status(200).json({ avatarURL: updatedUser.avatarURL });
+  } catch (error) {
+    console.error("Unexpected error in updateAvatar:", error.message);
+    next(error);
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
   logoutUser,
   getCurrentUser,
   updateSubscription,
+  updateAvatar,
 };

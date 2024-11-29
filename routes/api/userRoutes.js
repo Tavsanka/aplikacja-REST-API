@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const authMiddleware = require("../../middlewares/authMiddleware");
+const upload = require("../../middlewares/uploadMiddleware");
 
 const {
   registerUser,
@@ -8,6 +9,7 @@ const {
   logoutUser,
   getCurrentUser,
   updateSubscription,
+  updateAvatar,
 } = require("../../controllers/usersController");
 
 // Trasy dla użytkowników
@@ -16,5 +18,6 @@ router.post("/login", loginUser);
 router.post("/logout", authMiddleware, logoutUser);
 router.get("/current", authMiddleware, getCurrentUser);
 router.patch("/", authMiddleware, updateSubscription);
+router.patch("/avatars", authMiddleware, upload.single("avatar"), updateAvatar);
 
 module.exports = router;
