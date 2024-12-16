@@ -6,6 +6,10 @@ const fs = require("fs/promises");
 const Jimp = require("jimp");
 console.log("Jimp module loaded:", Jimp);
 
+const { nanoid } = require("nanoid"); // Nanoid do generowania tokenów
+const sgMail = require("@sendgrid/mail");
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+
 const User = require("../models/user");
 
 // Definiowanie ścieżki do folderu avatars
@@ -21,17 +25,36 @@ const registerUser = async (req, res, next) => {
       return res.status(409).json({ message: "Email in use" });
     }
 
-    // Hashowanie hasła i tworzenie użytkownika
+    // Hashowanie hasła
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Generowanie URL awatara
     const avatarURL = gravatar.url(email, { s: "250", d: "retro" }, true);
 
+    // Generowanie tokenu weryfikacyjnego
+    const verificationToken = nanoid();
+    console.log("Generated verificationToken:", verificationToken);
+
+    // Tworzenie nowego użytkownika
     const newUser = await User.create({
       email,
       password: hashedPassword,
       avatarURL,
+      verificationToken,
     });
+
+    // Wysyłanie emaila weryfikacyjnego
+    const verificationLink = `${process.env.BASE_URL}/api/users/verify/${verificationToken}`;
+    const msg = {
+      to: email,
+      from: process.env.SENDER_EMAIL, // Nadawca zarejestrowany w SendGrid
+      subject: "Email Verification",
+      html: `<p>Thank you for registering!</p>
+             <p>Please verify your email by clicking the link below:</p>
+             <a href="${verificationLink}">Verify Email</a>`,
+    };
+
+    await sgMail.send(msg);
 
     res.status(201).json({
       user: {
@@ -40,6 +63,42 @@ const registerUser = async (req, res, next) => {
         avatarURL: newUser.avatarURL,
       },
     });
+  } catch (error) {
+    console.error("Error in registerUser:", error.message);
+    next(error);
+  }
+};
+
+const resendVerificationEmail = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: "Missing required field email" });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (user.verify) {
+      return res
+        .status(400)
+        .json({ message: "Verification has already been passed" });
+    }
+
+    const msg = {
+      to: email,
+      from: "noreply@yourapp.com",
+      subject: "Please verify your email",
+      html: `<p>Click <a href="http://localhost:4000/api/users/verify/${user.verificationToken}">here</a> to verify your email.</p>`,
+    };
+
+    await sgMail.send(msg);
+
+    res.status(200).json({ message: "Verification email sent" });
   } catch (error) {
     next(error);
   }
@@ -231,6 +290,29 @@ const updateAvatar = async (req, res, next) => {
   }
 };
 
+const verifyEmail = async (req, res, next) => {
+  try {
+    const { verificationToken } = req.params;
+
+    console.log("Received token:", verificationToken);
+
+    const user = await User.findOne({ verificationToken });
+    console.log("User found:", user);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    user.verify = true;
+    user.verificationToken = null;
+    await user.save();
+
+    res.status(200).json({ message: "Verification successful" });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -238,4 +320,6 @@ module.exports = {
   getCurrentUser,
   updateSubscription,
   updateAvatar,
+  verifyEmail,
+  resendVerificationEmail,
 };

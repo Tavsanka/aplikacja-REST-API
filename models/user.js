@@ -25,6 +25,16 @@ const userSchema = new Schema(
       type: String,
       default: null,
     },
+    verify: {
+      type: Boolean,
+      default: false, // Domyślnie użytkownik nie jest zweryfikowany
+    },
+    verificationToken: {
+      type: String,
+      required: function () {
+        return !this.verify; // Wymagane tylko wtedy, gdy pole "verify" jest ustawione na "false"
+      },
+    },
   },
   {
     timestamps: true,

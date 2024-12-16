@@ -10,6 +10,8 @@ const {
   getCurrentUser,
   updateSubscription,
   updateAvatar,
+  verifyEmail,
+  resendVerificationEmail,
 } = require("../../controllers/usersController");
 
 // Trasy dla użytkowników
@@ -19,5 +21,7 @@ router.post("/logout", authMiddleware, logoutUser);
 router.get("/current", authMiddleware, getCurrentUser);
 router.patch("/", authMiddleware, updateSubscription);
 router.patch("/avatars", authMiddleware, upload.single("avatar"), updateAvatar);
+router.get("/verify/:verificationToken", verifyEmail);
+router.post("/verify", resendVerificationEmail);
 
 module.exports = router;
