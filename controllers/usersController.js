@@ -115,6 +115,20 @@ const loginUser = async (req, res, next) => {
       return res.status(401).json({ message: "Email or password is wrong" });
     }
 
+    // Sprawdzanie, czy hasło jest poprawne
+    const isPasswordCorrect = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordCorrect) {
+      return res.status(401).json({ message: "Email or password is wrong" });
+    }
+
+    // Sprawdzanie, czy użytkownik został zweryfikowany
+    if (!user.verify) {
+      return res.status(403).json({
+        message: "Your email has not been verified. Please verify your email.",
+      });
+    }
+
     // Generowanie tokenu
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
       expiresIn: "1h",
